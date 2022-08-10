@@ -3,8 +3,8 @@
 CLI to sync rekordbox playlists over to plexamp
 
 <p float="left">
-  <img src="./rekordbox.png" width="200" />
-  <img src="./plexamp.png" width="200" />
+  <img src="./rekordbox.png" width="350" />
+  <img src="./plexamp.png" width="350" />
 </p>
 
 
