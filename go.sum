@@ -4,6 +4,10 @@ github.com/andreburgaud/crypt2go v1.1.0/go.mod h1:4qhZPzarj1dCIRmCkpdgCklwp+hBq9
 github.com/andybalholm/cascadia v1.1.0/go.mod h1:GsXiBklL0woXo1j/WYWtSYYC4ouU9PqHO0sqidkEA4Y=
 github.com/dvcrn/go-rekordbox v0.0.0-20220810024645-87dd9893a4f6 h1:AZlzmPBTDaXqNqot8YL3MQsdoLhNsLvYLmvDHoI5gM8=
 github.com/dvcrn/go-rekordbox v0.0.0-20220810024645-87dd9893a4f6/go.mod h1:v1IHtCtgltBhzO3+nCobAzlLK45aZwj8qM98C21y+fY=
+github.com/dvcrn/go-rekordbox v0.0.0-20230526093126-95a166933759 h1:6MCwmq7AisxYm8WWiJ4CP5fvq1PGx5Dmg32av3TjVlE=
+github.com/dvcrn/go-rekordbox v0.0.0-20230526093126-95a166933759/go.mod h1:v1IHtCtgltBhzO3+nCobAzlLK45aZwj8qM98C21y+fY=
+github.com/dvcrn/go-rekordbox v0.0.0-20230610074356-8be6191ba198 h1:My4AT1vDGGyafT8zgXjpls26SmlP4EgGzf95fJlvh4Q=
+github.com/dvcrn/go-rekordbox v0.0.0-20230610074356-8be6191ba198/go.mod h1:v1IHtCtgltBhzO3+nCobAzlLK45aZwj8qM98C21y+fY=
 github.com/go-sql-driver/mysql v1.6.0 h1:BCTh4TKNUYmOmMUcQ3IipzF5prigylS7XXjEkfCHuOE=
 github.com/go-sql-driver/mysql v1.6.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
 github.com/jmoiron/sqlx v1.3.5 h1:vFFPA71p1o5gAeqtEAwLU4dnX2napprKtHr7PYIcN3g=

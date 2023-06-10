@@ -2,7 +2,7 @@ module github.com/dvcrn/rekordbox-playlist-sync
 
 go 1.18
 
-require github.com/dvcrn/go-rekordbox v0.0.0-20220810024645-87dd9893a4f6
+require github.com/dvcrn/go-rekordbox v0.0.0-20230610074356-8be6191ba198
 
 require (
 	github.com/andreburgaud/crypt2go v1.1.0 // indirect

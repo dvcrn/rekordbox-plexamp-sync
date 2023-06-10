@@ -46,9 +46,7 @@ func getPlaylists() *C.char {
 	optionsFilePath := filepath.Join(homeDir, "/Library/Application Support/Pioneer/rekordboxAgent/storage/", "options.json")
 
 	// Files and paths
-	asarPath := "/Applications/rekordbox 6/rekordbox.app/Contents/MacOS/rekordboxAgent.app/Contents/Resources/app.asar"
-
-	client, err := rekordbox.NewClient(optionsFilePath, asarPath)
+	client, err := rekordbox.NewClient(optionsFilePath)
 	if err != nil {
 		panic(err)
 	}
