@@ -1,7 +1,7 @@
 import ctypes
 import json
 import sys
-from typing import Any, List, TypedDict, Union
+from typing import Any, Dict, List, TypedDict, Union
 
 from plexapi.server import PlexServer
 from tqdm import tqdm
@@ -113,6 +113,60 @@ class PlaylistObj(TypedDict):
     dj_md_contents: List[DjMdContent]
 
 
+def build_plex_track_map(plex: PlexServer) -> Dict[str, Any]:
+    """Build maps of all tracks in Plex for fast lookups"""
+    print('🗺️  Building Plex track map...')
+
+    track_map = {'by_filename': {}, 'by_title': {}}
+
+    # Get all music sections/libraries
+    for section in plex.library.sections():
+        if section.type == 'artist':  # Music library
+            print(f'   Indexing library: {section.title}')
+            tracks = section.searchTracks()
+
+            for track in tqdm(
+                tracks, desc=f'   Indexing {section.title}', unit=' tracks', leave=False
+            ):
+                # Map by filename
+                if hasattr(track, 'media') and track.media:
+                    for media in track.media:
+                        for part in media.parts:
+                            filename = (
+                                part.file.split('/')[-1]
+                                if '/' in part.file
+                                else part.file.split('\\')[-1]
+                            )
+                            track_map['by_filename'][filename] = track
+
+                # Map by title (lowercase for better matching)
+                if track.title:
+                    track_map['by_title'][track.title.lower()] = track
+
+    print(f'✓ Indexed {len(track_map["by_filename"])} tracks by filename')
+    print(f'✓ Indexed {len(track_map["by_title"])} tracks by title\n')
+
+    return track_map
+
+
+def build_plex_playlist_map(plex: PlexServer) -> Dict[str, Dict]:
+    """Build a map of existing Plex playlists with their track IDs"""
+    print('📋 Building Plex playlist map...')
+
+    playlist_map = {}
+    playlists = plex.playlists()
+
+    for playlist in tqdm(playlists, desc='   Indexing playlists', unit=' playlists'):
+        if playlist.smart:
+            continue  # Skip smart playlists
+
+        track_ids = set(track.ratingKey for track in playlist.items())
+        playlist_map[playlist.title] = {'playlist': playlist, 'track_ids': track_ids}
+
+    print(f'✓ Found {len(playlist_map)} existing playlists\n')
+    return playlist_map
+
+
 def get_playlists() -> List[PlaylistObj]:
     library = ctypes.cdll.LoadLibrary('./library.so')
     getPlaylists = library.getPlaylists
@@ -139,12 +193,16 @@ server_url = sys.argv[1]
 
 plex = PlexServer(server_url, token)
 
-print(f'\nFound {len(pl)} playlists to sync\n')
+# Build maps ONCE at the start
+track_map = build_plex_track_map(plex)
+playlist_map = build_plex_playlist_map(plex)
+
+print(f'\nFound {len(pl)} Rekordbox playlists to sync\n')
 
 for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
     playlist_title = p['dj_md_playlist']['name']
 
-    # Skip smart playlists (can't manually add tracks to them)
+    # Skip smart playlists
     smart_list_data = p['dj_md_playlist'].get('smart_list')
     if smart_list_data and smart_list_data != '':
         tqdm.write(f'⏭️  Skipping smart playlist: {playlist_title}')
@@ -152,61 +210,70 @@ for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
 
     tqdm.write(f'📝 Processing: {playlist_title}')
 
-    tracks = []
     if 'dj_md_contents' not in p or len(p['dj_md_contents']) == 0:
         tqdm.write(f'⚠️  No tracks in playlist: {playlist_title}')
         continue
 
-    tqdm.write(f'🔍 Checking if playlist exists in Plex...')
     combined_title = '{}'.format(p['combined_name'])
-    existing_playlists = plex.playlists(title=combined_title)
 
-    # Check if existing Plex playlist is smart
-    if len(existing_playlists) > 0:
-        if existing_playlists[0].smart:
+    tqdm.write(f'🎵 Matching {len(p["dj_md_contents"])} tracks...')
+    tracks = []
+
+    for content in p['dj_md_contents']:
+        file_name = content['file_name_l']
+        title = content['title']
+
+        # FAST LOOKUP - No Plex search needed!
+        track = track_map['by_filename'].get(file_name)
+        if not track and title:
+            track = track_map['by_title'].get(title.lower())
+
+        if track:
+            tracks.append(track)
+        else:
+            tqdm.write(f'  ⚠️  Track not found: {file_name}')
+
+    # Get current track IDs
+    rekordbox_track_ids = set(track.ratingKey for track in tracks)
+
+    # Check if playlist exists and needs updating
+    if combined_title in playlist_map:
+        existing_playlist_data = playlist_map[combined_title]
+        existing_playlist = existing_playlist_data['playlist']
+        existing_track_ids = existing_playlist_data['track_ids']
+
+        # Check if playlist is smart (can't modify smart playlists)
+        if existing_playlist.smart:
             tqdm.write(
                 f"⏭️  Skipping - existing Plex playlist '{combined_title}' is a smart playlist"
             )
             continue
-        tqdm.write(f'✓ Found existing playlist, will update it')
+
+        # Compare track sets
+        if rekordbox_track_ids == existing_track_ids:
+            tqdm.write(
+                f'✓ Playlist "{combined_title}" is already up to date ({len(tracks)} tracks), skipping\n'
+            )
+            continue
+        else:
+            tqdm.write(
+                f'🔄 Playlist has changed, updating... (was {len(existing_track_ids)}, now {len(tracks)} tracks)'
+            )
+
+            # Remove all tracks and re-add
+            for track in existing_playlist.items():
+                try:
+                    existing_playlist.removeItems([track])
+                except:
+                    pass
+
+            existing_playlist.addItems(tracks)
+            tqdm.write(f'✅ Updated playlist: {combined_title}\n')
     else:
-        tqdm.write(f'✓ Will create new playlist')
+        tqdm.write(
+            f'💾 Creating new playlist: {combined_title} ({len(tracks)} tracks)...'
+        )
+        plex.createPlaylist(title=combined_title, items=tracks)
+        tqdm.write(f'✅ Created playlist: {combined_title}\n')
 
-    tqdm.write(f'🎵 Matching {len(p["dj_md_contents"])} tracks...')
-    for content in tqdm(
-        p['dj_md_contents'], desc=f'  Matching tracks', leave=False, unit='track'
-    ):
-        file_path = content['folder_path']
-        file_name = content['file_name_l']
-        title = content['title']
-
-        # search for track, by filename and then by title
-        found_file = plex.library.search(file=file_name, libtype='track')
-        found_name = plex.library.search(title=title, libtype='track')
-        if len(found_file) > 0:
-            track = found_file[0]
-            tracks += [track]
-            continue
-
-        if len(found_name) > 0:
-            track = found_name[0]
-            tracks += [track]
-            continue
-
-        tqdm.write(f'  ⚠️  Track not found: {file_path}/{file_name}')
-
-    tqdm.write(f'💾 Saving playlist to Plex ({len(tracks)} tracks matched)...')
-
-    if len(existing_playlists) > 0:
-        for track in existing_playlists[0].items():
-            try:
-                existing_playlists[0].removeItems([track])
-            except:
-                pass
-
-        existing_playlists[0].addItems(tracks)
-        tqdm.write(f'✅ Updated playlist: {combined_title}\n')
-        continue
-
-    pl = plex.createPlaylist(title=combined_title, items=tracks)
-    tqdm.write(f'✅ Created playlist: {combined_title}\n')
+print('\n🎉 Sync complete!')
