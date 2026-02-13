@@ -1,9 +1,10 @@
 import ctypes
 import json
 import sys
-from typing import Any, TypedDict, Union, List
+from typing import Any, List, TypedDict, Union
 
 from plexapi.server import PlexServer
+from tqdm import tqdm
 
 
 class DjMdContent(TypedDict):
@@ -127,6 +128,7 @@ def get_playlists() -> List[PlaylistObj]:
 
 pl = get_playlists()
 
+
 if len(sys.argv) <= 2:
     print('Please provide a valid URL and token')
     print('Usage: python3 app.py <server url> <token>')
@@ -137,17 +139,43 @@ server_url = sys.argv[1]
 
 plex = PlexServer(server_url, token)
 
-for p in pl:
+print(f'\nFound {len(pl)} playlists to sync\n')
+
+for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
     playlist_title = p['dj_md_playlist']['name']
 
-    print('syncing', playlist_title)
+    # Skip smart playlists (can't manually add tracks to them)
+    smart_list_data = p['dj_md_playlist'].get('smart_list')
+    if smart_list_data and smart_list_data != '':
+        tqdm.write(f'⏭️  Skipping smart playlist: {playlist_title}')
+        continue
+
+    tqdm.write(f'📝 Processing: {playlist_title}')
 
     tracks = []
     if 'dj_md_contents' not in p or len(p['dj_md_contents']) == 0:
-        print('no tracks in playlist', playlist_title)
+        tqdm.write(f'⚠️  No tracks in playlist: {playlist_title}')
         continue
 
-    for content in p['dj_md_contents']:
+    tqdm.write(f'🔍 Checking if playlist exists in Plex...')
+    combined_title = '{}'.format(p['combined_name'])
+    existing_playlists = plex.playlists(title=combined_title)
+
+    # Check if existing Plex playlist is smart
+    if len(existing_playlists) > 0:
+        if existing_playlists[0].smart:
+            tqdm.write(
+                f"⏭️  Skipping - existing Plex playlist '{combined_title}' is a smart playlist"
+            )
+            continue
+        tqdm.write(f'✓ Found existing playlist, will update it')
+    else:
+        tqdm.write(f'✓ Will create new playlist')
+
+    tqdm.write(f'🎵 Matching {len(p["dj_md_contents"])} tracks...')
+    for content in tqdm(
+        p['dj_md_contents'], desc=f'  Matching tracks', leave=False, unit='track'
+    ):
         file_path = content['folder_path']
         file_name = content['file_name_l']
         title = content['title']
@@ -165,10 +193,9 @@ for p in pl:
             tracks += [track]
             continue
 
-        print("track not found", title, file_path)
+        tqdm.write(f'  ⚠️  Track not found: {file_path}/{file_name}')
 
-    combined_title = "{}".format(p['combined_name'])
-    existing_playlists = plex.playlists(title=combined_title)
+    tqdm.write(f'💾 Saving playlist to Plex ({len(tracks)} tracks matched)...')
 
     if len(existing_playlists) > 0:
         for track in existing_playlists[0].items():
@@ -178,9 +205,8 @@ for p in pl:
                 pass
 
         existing_playlists[0].addItems(tracks)
-        print('updated playlist %s' % combined_title)
+        tqdm.write(f'✅ Updated playlist: {combined_title}\n')
         continue
 
     pl = plex.createPlaylist(title=combined_title, items=tracks)
-    print('created playlist %s' % combined_title)
-
+    tqdm.write(f'✅ Created playlist: {combined_title}\n')

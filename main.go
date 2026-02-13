@@ -27,7 +27,9 @@ func getRecursivePlaylistName(ctx context.Context, client *rekordbox.Client, pla
 	// get parent
 	parent, err := client.DjmdPlaylistByID(ctx, playlist.ParentID)
 	if err != nil {
-		panic(err)
+		// Return current name if parent not found
+		fmt.Fprintf(os.Stderr, "Warning: Parent playlist not found for %s: %v\n", nameSoFar, err)
+		return nameSoFar
 	}
 
 	name := fmt.Sprintf("%s - %s", parent.Name.String(), nameSoFar)
@@ -77,7 +79,9 @@ func getPlaylists() *C.char {
 		for _, playlistSong := range playlistSongs {
 			content, err := client.DjmdContentByID(ctx, playlistSong.ContentID)
 			if err != nil {
-				panic(err)
+				// Skip this track if not found
+				fmt.Fprintf(os.Stderr, "Warning: Track content not found for ContentID %v (Entry ID: %v, Track #%v) in playlist %s: %v\n", playlistSong.ContentID, playlistSong.ID, playlistSong.TrackNo, playlist.Name.String(), err)
+				continue
 			}
 
 			pl.DJMdContents = append(pl.DJMdContents, content)
