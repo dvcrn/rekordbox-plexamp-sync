@@ -25,10 +25,10 @@ pip install -r requirements.txt
 make
 
 # Requires Python 3.8+
-python app.py <server url> <token>
+python app.py <server url> <token> [--verbose|-v]
 ```
 
-Example: `python app.py 'http://localhost:32400' '123456abcdefg'`
+Example: `python app.py 'http://localhost:32400' '123456abcdefg' --verbose`
 
 ## Usage (windows)
 I don't have a windows machine to try this on, but build the shared library with Golang.
