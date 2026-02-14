@@ -77,10 +77,20 @@ func getPlaylists() *C.char {
 		pl.CombinedName = getRecursivePlaylistName(ctx, client, playlist, playlist.Name.String())
 
 		for _, playlistSong := range playlistSongs {
+			// Skip deleted playlist entries
+			if playlistSong.RbLocalDeleted.Int64Value() != 0 {
+				continue
+			}
+
 			content, err := client.DjmdContentByID(ctx, playlistSong.ContentID)
 			if err != nil {
 				// Skip this track if not found
 				fmt.Fprintf(os.Stderr, "Warning: Track content not found for ContentID %v (Entry ID: %v, Track #%v) in playlist %s: %v\n", playlistSong.ContentID, playlistSong.ID, playlistSong.TrackNo, playlist.Name.String(), err)
+				continue
+			}
+
+			// Skip deleted content
+			if content.RbLocalDeleted.Int64Value() != 0 {
 				continue
 			}
 
