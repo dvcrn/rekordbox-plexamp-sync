@@ -1,10 +1,12 @@
 import ctypes
 import json
+import os
 import sys
 from typing import Any, Dict, List, TypedDict, Union
 
 from plexapi.server import PlexServer
-from tqdm import tqdm
+
+from logger import Logger
 
 
 class DjMdContent(TypedDict):
@@ -113,57 +115,64 @@ class PlaylistObj(TypedDict):
     dj_md_contents: List[DjMdContent]
 
 
-def build_plex_track_map(plex: PlexServer) -> Dict[str, Any]:
+def _index_plex_track(track: Any, track_map: Dict[str, Any]) -> None:
+    """Helper function to index a single track into the track map"""
+    # Map by filename
+    if hasattr(track, 'media') and track.media:
+        for media in track.media:
+            for part in media.parts:
+                filename = os.path.basename(part.file)
+                track_map['by_filename'][filename] = track
+
+    # Map by title (lowercase for better matching)
+    if track.title:
+        track_map['by_title'][track.title.lower()] = track
+
+
+def build_plex_track_map(plex: PlexServer, logger: Logger) -> Dict[str, Any]:
     """Build maps of all tracks in Plex for fast lookups"""
-    print('🗺️  Building Plex track map...')
+    logger.building_track_map()
 
     track_map = {'by_filename': {}, 'by_title': {}}
 
     # Get all music sections/libraries
     for section in plex.library.sections():
         if section.type == 'artist':  # Music library
-            print(f'   Indexing library: {section.title}')
+            logger.indexing_library(section.title)
             tracks = section.searchTracks()
 
-            for track in tqdm(
+            for track in logger.tqdm(
                 tracks, desc=f'   Indexing {section.title}', unit=' tracks', leave=False
             ):
-                # Map by filename
-                if hasattr(track, 'media') and track.media:
-                    for media in track.media:
-                        for part in media.parts:
-                            filename = (
-                                part.file.split('/')[-1]
-                                if '/' in part.file
-                                else part.file.split('\\')[-1]
-                            )
-                            track_map['by_filename'][filename] = track
+                _index_plex_track(track, track_map)
 
-                # Map by title (lowercase for better matching)
-                if track.title:
-                    track_map['by_title'][track.title.lower()] = track
-
-    print(f'✓ Indexed {len(track_map["by_filename"])} tracks by filename')
-    print(f'✓ Indexed {len(track_map["by_title"])} tracks by title\n')
+    logger.track_map_complete(len(track_map['by_filename']), len(track_map['by_title']))
 
     return track_map
 
 
-def build_plex_playlist_map(plex: PlexServer) -> Dict[str, Dict]:
+def _index_plex_playlist(playlist: Any, playlist_map: Dict[str, Dict]) -> None:
+    """Helper function to index a single playlist into the playlist map"""
+    if playlist.smart:
+        return  # Skip smart playlists
+
+    track_ids = set(track.ratingKey for track in playlist.items())
+    playlist_map[playlist.title] = {'playlist': playlist, 'track_ids': track_ids}
+
+
+def build_plex_playlist_map(plex: PlexServer, logger: Logger) -> Dict[str, Dict]:
     """Build a map of existing Plex playlists with their track IDs"""
-    print('📋 Building Plex playlist map...')
+    logger.building_playlist_map()
 
     playlist_map = {}
     playlists = plex.playlists()
 
-    for playlist in tqdm(playlists, desc='   Indexing playlists', unit=' playlists'):
-        if playlist.smart:
-            continue  # Skip smart playlists
+    for playlist in logger.tqdm(
+        playlists, desc='   Indexing playlists', unit=' playlists'
+    ):
+        _index_plex_playlist(playlist, playlist_map)
 
-        track_ids = set(track.ratingKey for track in playlist.items())
-        playlist_map[playlist.title] = {'playlist': playlist, 'track_ids': track_ids}
-
-    print(f'✓ Found {len(playlist_map)} existing playlists\n')
+    logger.playlist_map_complete(len(playlist_map))
     return playlist_map
 
 
@@ -185,19 +194,27 @@ pl = get_playlists()
 
 if len(sys.argv) <= 2:
     print('Please provide a valid URL and token')
-    print('Usage: python3 app.py <server url> <token>')
+    print('Usage: python3 app.py <server url> <token> [--verbose|-v]')
     sys.exit(0)
 
 token = sys.argv[2]
 server_url = sys.argv[1]
 
+# Check for verbose flag - default is quiet
+verbose = False  # Default to quiet
+if '--verbose' in sys.argv or '-v' in sys.argv:
+    verbose = True
+
 plex = PlexServer(server_url, token)
 
-# Build maps ONCE at the start
-track_map = build_plex_track_map(plex)
-playlist_map = build_plex_playlist_map(plex)
+# Initialize logger with verbose flag
+logger = Logger(verbose=verbose)
 
-print(f'\nFound {len(pl)} Rekordbox playlists to sync\n')
+# Build maps ONCE at the start
+track_map = build_plex_track_map(plex, logger)
+playlist_map = build_plex_playlist_map(plex, logger)
+
+logger.rekordbox_playlists_found(len(pl))
 
 # Track changes for summary
 created_playlists = []
@@ -206,27 +223,27 @@ skipped_playlists = []
 smart_playlists_skipped = []
 not_found_tracks = []  # Track not found tracks for export
 
-for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
+for p in logger.tqdm(pl, desc='Syncing playlists', unit='playlist'):
     playlist_title = p['dj_md_playlist']['name']
 
     # Skip smart playlists
     smart_list_data = p['dj_md_playlist'].get('smart_list')
     if smart_list_data and smart_list_data != '':
-        tqdm.write(f'⏭️  Skipping smart playlist: {playlist_title}')
+        logger.skipping_smart_playlist(playlist_title)
         smart_playlists_skipped.append(playlist_title)
         continue
 
-    tqdm.write(f'📝 Processing: {playlist_title}')
+    logger.processing_playlist(playlist_title)
 
     if 'dj_md_contents' not in p or len(p['dj_md_contents']) == 0:
         combined_title = '{}'.format(p['combined_name'])
-        tqdm.write(f'⚠️  No tracks in playlist: {playlist_title}')
+        logger.no_tracks_in_playlist(playlist_title)
         skipped_playlists.append({'name': combined_title, 'reason': 'No tracks'})
         continue
 
     combined_title = '{}'.format(p['combined_name'])
 
-    tqdm.write(f'🎵 Matching {len(p["dj_md_contents"])} tracks...')
+    logger.matching_tracks(len(p['dj_md_contents']))
     tracks = []
 
     for content in p['dj_md_contents']:
@@ -258,7 +275,7 @@ for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
     ]
     if playlist_not_found:
         for nf in playlist_not_found:
-            tqdm.write(f'  ⚠️  Track not found: {nf["file_name"]}')
+            logger.track_not_found(nf['file_name'], nf['title'], nf['full_path'])
 
     # Get current track IDs
     rekordbox_track_ids = set(track.ratingKey for track in tracks)
@@ -271,32 +288,29 @@ for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
 
         # Check if playlist is smart (can't modify smart playlists)
         if existing_playlist.smart:
-            tqdm.write(
-                f"⏭️  Skipping - existing Plex playlist '{combined_title}' is a smart playlist"
-            )
+            logger.skipping_plex_smart_playlist(combined_title)
             smart_playlists_skipped.append(combined_title)
             continue
 
         # Compare track sets
         if rekordbox_track_ids == existing_track_ids:
-            tqdm.write(
-                f'✓ Playlist "{combined_title}" is already up to date ({len(tracks)} tracks), skipping\n'
-            )
+            logger.playlist_up_to_date(combined_title, len(tracks))
             skipped_playlists.append(
                 {'name': combined_title, 'tracks': len(tracks), 'reason': 'Up to date'}
             )
             continue
         else:
-            tqdm.write(
-                f'🔄 Playlist has changed, updating... (was {len(existing_track_ids)}, now {len(tracks)} tracks)'
+            logger.playlist_updating(
+                combined_title, len(existing_track_ids), len(tracks)
             )
 
-            # Remove all tracks and re-add
-            for track in existing_playlist.items():
-                try:
-                    existing_playlist.removeItems([track])
-                except:
-                    pass
+            # Remove all tracks and re-add (batch operation for efficiency)
+            try:
+                items_to_remove = existing_playlist.items()
+                if items_to_remove:
+                    existing_playlist.removeItems(items_to_remove)
+            except Exception as e:
+                logger.playlist_update_error(combined_title, e)
 
             existing_playlist.addItems(tracks)
             updated_playlists.append(
@@ -307,14 +321,12 @@ for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
                     'added': len(tracks) - len(existing_track_ids),
                 }
             )
-            tqdm.write(f'✅ Updated playlist: {combined_title}\n')
+            logger.playlist_updated(combined_title)
     else:
-        tqdm.write(
-            f'💾 Creating new playlist: {combined_title} ({len(tracks)} tracks)...'
-        )
+        logger.creating_playlist(combined_title, len(tracks))
         plex.createPlaylist(title=combined_title, items=tracks)
         created_playlists.append({'name': combined_title, 'tracks': len(tracks)})
-        tqdm.write(f'✅ Created playlist: {combined_title}\n')
+        logger.playlist_created(combined_title)
 
 # Export not-found tracks to file
 if not_found_tracks:
@@ -325,35 +337,16 @@ if not_found_tracks:
 has_changes = created_playlists or updated_playlists or smart_playlists_skipped
 
 if not has_changes:
-    print('\n' + '=' * 70)
-    print('✅ Everything is already in sync!')
-    print('=' * 70)
+    logger.all_in_sync_header()
     if not_found_tracks:
-        print(f'\n⚠️  {len(not_found_tracks)} track(s) not found in Plex')
-        print(f'📄 Details exported to: not-found.json')
-    print('=' * 70 + '\n')
+        logger.not_found_tracks_exported(len(not_found_tracks))
+    logger.section_footer()
 else:
-    print('\n' + '=' * 70)
-    print('📊 SYNC SUMMARY')
-    print('=' * 70)
+    logger.sync_summary_header()
 
-    if created_playlists:
-        print(f'\n✨ Created {len(created_playlists)} playlist(s):')
-        for pl in created_playlists:
-            print(f'   • {pl["name"]} ({pl["tracks"]} tracks)')
-
-    if updated_playlists:
-        print(f'\n🔄 Updated {len(updated_playlists)} playlist(s):')
-        for pl in updated_playlists:
-            change = f'+{pl["added"]}' if pl['added'] > 0 else str(pl['added'])
-            print(
-                f'   • {pl["name"]} ({pl["old_tracks"]} → {pl["new_tracks"]} tracks, {change})'
-            )
-
-    if smart_playlists_skipped:
-        print(f'\n🔒 Skipped {len(smart_playlists_skipped)} smart playlist(s):')
-        for name in smart_playlists_skipped:
-            print(f'   • {name}')
+    logger.created_playlists_summary(created_playlists)
+    logger.updated_playlists_summary(updated_playlists)
+    logger.skipped_smart_playlists_summary(smart_playlists_skipped)
 
     total_processed = (
         len(created_playlists)
@@ -361,10 +354,7 @@ else:
         + len(skipped_playlists)
         + len(smart_playlists_skipped)
     )
-    print(f'\n{"=" * 70}')
-    print(f'Total: {total_processed} playlists processed')
-    print('🎉 Sync complete!')
+    logger.sync_complete(total_processed)
     if not_found_tracks:
-        print(f'\n⚠️  {len(not_found_tracks)} track(s) not found in Plex')
-        print(f'📄 Details exported to: not-found.json')
-    print('=' * 70 + '\n')
+        logger.not_found_tracks_exported(len(not_found_tracks))
+    logger.section_footer()
