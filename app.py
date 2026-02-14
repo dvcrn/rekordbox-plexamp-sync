@@ -199,6 +199,13 @@ playlist_map = build_plex_playlist_map(plex)
 
 print(f'\nFound {len(pl)} Rekordbox playlists to sync\n')
 
+# Track changes for summary
+created_playlists = []
+updated_playlists = []
+skipped_playlists = []
+smart_playlists_skipped = []
+not_found_tracks = []  # Track not found tracks for export
+
 for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
     playlist_title = p['dj_md_playlist']['name']
 
@@ -206,12 +213,15 @@ for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
     smart_list_data = p['dj_md_playlist'].get('smart_list')
     if smart_list_data and smart_list_data != '':
         tqdm.write(f'⏭️  Skipping smart playlist: {playlist_title}')
+        smart_playlists_skipped.append(playlist_title)
         continue
 
     tqdm.write(f'📝 Processing: {playlist_title}')
 
     if 'dj_md_contents' not in p or len(p['dj_md_contents']) == 0:
+        combined_title = '{}'.format(p['combined_name'])
         tqdm.write(f'⚠️  No tracks in playlist: {playlist_title}')
+        skipped_playlists.append({'name': combined_title, 'reason': 'No tracks'})
         continue
 
     combined_title = '{}'.format(p['combined_name'])
@@ -221,6 +231,7 @@ for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
 
     for content in p['dj_md_contents']:
         file_name = content['file_name_l']
+        folder_path = content['folder_path']
         title = content['title']
 
         # FAST LOOKUP - No Plex search needed!
@@ -231,7 +242,23 @@ for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
         if track:
             tracks.append(track)
         else:
-            tqdm.write(f'  ⚠️  Track not found: {file_name}')
+            full_path = f'{folder_path}/{file_name}' if folder_path else file_name
+            not_found_tracks.append(
+                {
+                    'playlist': combined_title,
+                    'file_name': file_name,
+                    'full_path': full_path,
+                    'title': title,
+                }
+            )
+
+    # Show not found tracks for this playlist (filenames only)
+    playlist_not_found = [
+        nf for nf in not_found_tracks if nf['playlist'] == combined_title
+    ]
+    if playlist_not_found:
+        for nf in playlist_not_found:
+            tqdm.write(f'  ⚠️  Track not found: {nf["file_name"]}')
 
     # Get current track IDs
     rekordbox_track_ids = set(track.ratingKey for track in tracks)
@@ -247,12 +274,16 @@ for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
             tqdm.write(
                 f"⏭️  Skipping - existing Plex playlist '{combined_title}' is a smart playlist"
             )
+            smart_playlists_skipped.append(combined_title)
             continue
 
         # Compare track sets
         if rekordbox_track_ids == existing_track_ids:
             tqdm.write(
                 f'✓ Playlist "{combined_title}" is already up to date ({len(tracks)} tracks), skipping\n'
+            )
+            skipped_playlists.append(
+                {'name': combined_title, 'tracks': len(tracks), 'reason': 'Up to date'}
             )
             continue
         else:
@@ -268,12 +299,72 @@ for p in tqdm(pl, desc='Syncing playlists', unit='playlist'):
                     pass
 
             existing_playlist.addItems(tracks)
+            updated_playlists.append(
+                {
+                    'name': combined_title,
+                    'old_tracks': len(existing_track_ids),
+                    'new_tracks': len(tracks),
+                    'added': len(tracks) - len(existing_track_ids),
+                }
+            )
             tqdm.write(f'✅ Updated playlist: {combined_title}\n')
     else:
         tqdm.write(
             f'💾 Creating new playlist: {combined_title} ({len(tracks)} tracks)...'
         )
         plex.createPlaylist(title=combined_title, items=tracks)
+        created_playlists.append({'name': combined_title, 'tracks': len(tracks)})
         tqdm.write(f'✅ Created playlist: {combined_title}\n')
 
-print('\n🎉 Sync complete!')
+# Export not-found tracks to file
+if not_found_tracks:
+    with open('not-found.json', 'w') as f:
+        json.dump(not_found_tracks, f, indent=2)
+
+# Print summary
+has_changes = created_playlists or updated_playlists or smart_playlists_skipped
+
+if not has_changes:
+    print('\n' + '=' * 70)
+    print('✅ Everything is already in sync!')
+    print('=' * 70)
+    if not_found_tracks:
+        print(f'\n⚠️  {len(not_found_tracks)} track(s) not found in Plex')
+        print(f'📄 Details exported to: not-found.json')
+    print('=' * 70 + '\n')
+else:
+    print('\n' + '=' * 70)
+    print('📊 SYNC SUMMARY')
+    print('=' * 70)
+
+    if created_playlists:
+        print(f'\n✨ Created {len(created_playlists)} playlist(s):')
+        for pl in created_playlists:
+            print(f'   • {pl["name"]} ({pl["tracks"]} tracks)')
+
+    if updated_playlists:
+        print(f'\n🔄 Updated {len(updated_playlists)} playlist(s):')
+        for pl in updated_playlists:
+            change = f'+{pl["added"]}' if pl['added'] > 0 else str(pl['added'])
+            print(
+                f'   • {pl["name"]} ({pl["old_tracks"]} → {pl["new_tracks"]} tracks, {change})'
+            )
+
+    if smart_playlists_skipped:
+        print(f'\n🔒 Skipped {len(smart_playlists_skipped)} smart playlist(s):')
+        for name in smart_playlists_skipped:
+            print(f'   • {name}')
+
+    total_processed = (
+        len(created_playlists)
+        + len(updated_playlists)
+        + len(skipped_playlists)
+        + len(smart_playlists_skipped)
+    )
+    print(f'\n{"=" * 70}')
+    print(f'Total: {total_processed} playlists processed')
+    print('🎉 Sync complete!')
+    if not_found_tracks:
+        print(f'\n⚠️  {len(not_found_tracks)} track(s) not found in Plex')
+        print(f'📄 Details exported to: not-found.json')
+    print('=' * 70 + '\n')
