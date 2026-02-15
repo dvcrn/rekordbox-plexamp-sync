@@ -14,15 +14,21 @@ This tool will extract all playlists from the rekordbox database, then interact 
 **Note:** This will only work if your rekordbox library is indexed by Plex. Make sure you deactivate all content matchers for Albums so that Plex does not match and rename tracks. This messes with the track matching to rekordbox, the titles need to be identical for better results
 
 ## Usage (mac)
+
 Get your Plex token and server url. You can get the Plex token from localstorage when connecting to your server through the browser.
 
-```
+```python
 virtualenv venv
 pip install -r requirements.txt
-python app.py <server url> <token>
+
+# Build library
+make
+
+# Requires Python 3.8+
+python app.py <server url> <token> [--verbose|-v]
 ```
 
-Example: `python app.py 'http://localhost:32400' '123456abcdefg'`
+Example: `python app.py 'http://localhost:32400' '123456abcdefg' --verbose`
 
 ## Usage (windows)
 I don't have a windows machine to try this on, but build the shared library with Golang.

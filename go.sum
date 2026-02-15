@@ -1,13 +1,11 @@
+github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
 github.com/PuerkitoBio/goquery v1.5.1/go.mod h1:GsLWisAFVj4WgDibEWF4pvYnkVQBpKBKeU+7zCJoLcc=
 github.com/andreburgaud/crypt2go v1.1.0 h1:eitZxTPY1krUsxinsng3Qvt/Ud7q/aQmmYRh8p4hyPw=
 github.com/andreburgaud/crypt2go v1.1.0/go.mod h1:4qhZPzarj1dCIRmCkpdgCklwp+hBq9yEt0zPe9Ayuhc=
 github.com/andybalholm/cascadia v1.1.0/go.mod h1:GsXiBklL0woXo1j/WYWtSYYC4ouU9PqHO0sqidkEA4Y=
-github.com/dvcrn/go-rekordbox v0.0.0-20220810024645-87dd9893a4f6 h1:AZlzmPBTDaXqNqot8YL3MQsdoLhNsLvYLmvDHoI5gM8=
-github.com/dvcrn/go-rekordbox v0.0.0-20220810024645-87dd9893a4f6/go.mod h1:v1IHtCtgltBhzO3+nCobAzlLK45aZwj8qM98C21y+fY=
-github.com/dvcrn/go-rekordbox v0.0.0-20230526093126-95a166933759 h1:6MCwmq7AisxYm8WWiJ4CP5fvq1PGx5Dmg32av3TjVlE=
-github.com/dvcrn/go-rekordbox v0.0.0-20230526093126-95a166933759/go.mod h1:v1IHtCtgltBhzO3+nCobAzlLK45aZwj8qM98C21y+fY=
-github.com/dvcrn/go-rekordbox v0.0.0-20230610074356-8be6191ba198 h1:My4AT1vDGGyafT8zgXjpls26SmlP4EgGzf95fJlvh4Q=
-github.com/dvcrn/go-rekordbox v0.0.0-20230610074356-8be6191ba198/go.mod h1:v1IHtCtgltBhzO3+nCobAzlLK45aZwj8qM98C21y+fY=
+github.com/davecgh/go-spew v1.1.0 h1:ZDRjVQ15GmhC3fiQ8ni8+OwkZQO4DARzQgrnXU1Liz8=
+github.com/einaralex/go-rekordbox v1.0.0 h1:191WAgAypH5uZDiNcx5pdWN+4EJunAdguhPkHEp4Xso=
+github.com/einaralex/go-rekordbox v1.0.0/go.mod h1:oN0VlzkviWeoD4BvufL64wTAqWMAvUoxJTVm9RN2hQE=
 github.com/go-sql-driver/mysql v1.6.0 h1:BCTh4TKNUYmOmMUcQ3IipzF5prigylS7XXjEkfCHuOE=
 github.com/go-sql-driver/mysql v1.6.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
 github.com/jmoiron/sqlx v1.3.5 h1:vFFPA71p1o5gAeqtEAwLU4dnX2napprKtHr7PYIcN3g=
@@ -18,6 +16,10 @@ github.com/mattn/go-nulltype v0.0.0-20200221160555-75ae8a76f2e9 h1:rBVTjwG0yqqqB
 github.com/mattn/go-nulltype v0.0.0-20200221160555-75ae8a76f2e9/go.mod h1:XIOm21CDf5ka8fTS/K5hF9v9Xe5iTAVUb/NnTCAiF1s=
 github.com/mattn/go-sqlite3 v1.14.6/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4A/KQRfk6bU=
 github.com/mattn/go-sqlite3 v1.14.14 h1:qZgc/Rwetq+MtyE18WhzjokPD93dNqLGNT3QJuLvBGw=
+github.com/nurcahyaari/sqlabst v0.0.0-20220902160139-0f2eb23feed8 h1:Qb/QOQxMOMCIOjLqt/zy+fhCw7C+uuvyVsgx29EbKQk=
+github.com/nurcahyaari/sqlabst v0.0.0-20220902160139-0f2eb23feed8/go.mod h1:khiKdsgBLVHEnaeXXy26A0VctERUkAVanBUzqDLDlXA=
+github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
+github.com/stretchr/testify v1.7.1 h1:5TQK59W5E3v0r2duFAb7P95B6hEeOyEnHRa8MjYSMTY=
 github.com/xeodou/go-sqlcipher v0.0.0-20200727080346-d681773ef093 h1:B6yl+jqs5t4C27I16+t1gn28lPlZgjLGxZehsK+jFfA=
 github.com/xeodou/go-sqlcipher v0.0.0-20200727080346-d681773ef093/go.mod h1:aZ06jyRpOCqbZdcLUsn8agGfXzlKkHbQp/CjwRKwxSQ=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
@@ -29,3 +31,4 @@ golang.org/x/net v0.0.0-20200324143707-d3edc9973b7e/go.mod h1:qpuaurCH72eLCgpAm/
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c h1:dUUwHk2QECo/6vqA44rthZ8ie2QXMNeKRTHCNY2nXvo=
