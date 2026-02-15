@@ -156,7 +156,7 @@ def _index_plex_playlist(playlist: Any, playlist_map: Dict[str, Dict]) -> None:
     if playlist.smart:
         return  # Skip smart playlists
 
-    track_ids = set(track.ratingKey for track in playlist.items())
+    track_ids = [track.ratingKey for track in playlist.items()]
     playlist_map[playlist.title] = {'playlist': playlist, 'track_ids': track_ids}
 
 
@@ -278,7 +278,7 @@ for p in logger.tqdm(pl, desc='Syncing playlists', unit='playlist'):
             logger.track_not_found(nf['file_name'], nf['title'], nf['full_path'])
 
     # Get current track IDs
-    rekordbox_track_ids = set(track.ratingKey for track in tracks)
+    rekordbox_track_ids = [track.ratingKey for track in tracks]
 
     # Check if playlist exists and needs updating
     if combined_title in playlist_map:
@@ -292,7 +292,7 @@ for p in logger.tqdm(pl, desc='Syncing playlists', unit='playlist'):
             smart_playlists_skipped.append(combined_title)
             continue
 
-        # Compare track sets
+        # Compare playlists, they are only skipped if they're truly identical
         if rekordbox_track_ids == existing_track_ids:
             logger.playlist_up_to_date(combined_title, len(tracks))
             skipped_playlists.append(
