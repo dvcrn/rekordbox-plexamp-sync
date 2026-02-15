@@ -269,7 +269,7 @@ for p in logger.tqdm(pl, desc='Syncing playlists', unit='playlist'):
                 }
             )
 
-    # Show not found tracks for this playlist (filenames only)
+    # Show not found tracks for this playlist
     playlist_not_found = [
         nf for nf in not_found_tracks if nf['playlist'] == combined_title
     ]
