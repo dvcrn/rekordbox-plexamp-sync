@@ -27,7 +27,9 @@ func getRecursivePlaylistName(ctx context.Context, client *rekordbox.Client, pla
 	// get parent
 	parent, err := client.DjmdPlaylistByID(ctx, playlist.ParentID)
 	if err != nil {
-		panic(err)
+		// Return current name if parent not found
+		fmt.Fprintf(os.Stderr, "Warning: Parent playlist not found for %s: %v\n", nameSoFar, err)
+		return nameSoFar
 	}
 
 	name := fmt.Sprintf("%s - %s", parent.Name.String(), nameSoFar)
@@ -75,9 +77,21 @@ func getPlaylists() *C.char {
 		pl.CombinedName = getRecursivePlaylistName(ctx, client, playlist, playlist.Name.String())
 
 		for _, playlistSong := range playlistSongs {
+			// Skip deleted playlist entries
+			if playlistSong.RbLocalDeleted.Int64Value() != 0 {
+				continue
+			}
+
 			content, err := client.DjmdContentByID(ctx, playlistSong.ContentID)
 			if err != nil {
-				panic(err)
+				// Skip this track if not found
+				fmt.Fprintf(os.Stderr, "Warning: Track content not found for ContentID %v (Entry ID: %v, Track #%v) in playlist %s: %v\n", playlistSong.ContentID, playlistSong.ID, playlistSong.TrackNo, playlist.Name.String(), err)
+				continue
+			}
+
+			// Skip deleted content
+			if content.RbLocalDeleted.Int64Value() != 0 {
+				continue
 			}
 
 			pl.DJMdContents = append(pl.DJMdContents, content)
