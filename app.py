@@ -1,9 +1,10 @@
+import argparse
 import ctypes
 import json
 import os
-import sys
-from typing import Any, Dict, List, TypedDict, Union
+from typing import Any, Dict, List, Tuple, TypedDict, Union
 
+import requests
 from plexapi.server import PlexServer
 
 from logger import Logger
@@ -189,26 +190,62 @@ def get_playlists() -> List[PlaylistObj]:
     return playlists_parsed
 
 
+def parse_header(value: str) -> Tuple[str, str]:
+    name, sep, header_value = value.partition(':')
+    if not sep or not name.strip():
+        raise argparse.ArgumentTypeError(f"expected 'Name: Value', got {value!r}")
+    return name.strip(), header_value.strip()
+
+
 pl = get_playlists()
 
 
-if len(sys.argv) <= 2:
-    print('Please provide a valid URL and token')
-    print('Usage: python3 app.py <server url> <token> [--verbose|-v]')
-    sys.exit(0)
+parser = argparse.ArgumentParser(description='Sync rekordbox playlists to Plex')
+parser.add_argument(
+    'server_url',
+    nargs='?',
+    default=os.environ.get('PLEX_URL'),
+    help='Plex server URL (default: $PLEX_URL)',
+)
+parser.add_argument(
+    'token',
+    nargs='?',
+    default=os.environ.get('PLEX_TOKEN'),
+    help='Plex token (default: $PLEX_TOKEN)',
+)
+parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
+parser.add_argument(
+    '-H',
+    '--header',
+    dest='headers',
+    action='append',
+    default=[],
+    type=parse_header,
+    metavar="'Name: Value'",
+    help='Extra HTTP header sent with every Plex request (repeatable)',
+)
+args = parser.parse_args()
+if not args.server_url or not args.token:
+    parser.error(
+        'a Plex server URL and token are required (args or PLEX_URL/PLEX_TOKEN)'
+    )
 
-token = sys.argv[2]
-server_url = sys.argv[1]
+headers = {}
+cf_client_id = os.environ.get('CF_ACCESS_CLIENT_ID')
+cf_client_secret = os.environ.get('CF_ACCESS_CLIENT_SECRET')
+if bool(cf_client_id) != bool(cf_client_secret):
+    parser.error('set both CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET, or neither')
+if cf_client_id:
+    headers['CF-Access-Client-Id'] = cf_client_id
+    headers['CF-Access-Client-Secret'] = cf_client_secret
+headers.update(args.headers)
 
-# Check for verbose flag - default is quiet
-verbose = False  # Default to quiet
-if '--verbose' in sys.argv or '-v' in sys.argv:
-    verbose = True
-
-plex = PlexServer(server_url, token)
+session = requests.Session()
+session.headers.update(headers)
+plex = PlexServer(args.server_url, args.token, session=session)
 
 # Initialize logger with verbose flag
-logger = Logger(verbose=verbose)
+logger = Logger(verbose=args.verbose)
 
 # Build maps ONCE at the start
 track_map = build_plex_track_map(plex, logger)

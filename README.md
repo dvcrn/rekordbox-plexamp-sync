@@ -30,6 +30,28 @@ python app.py <server url> <token> [--verbose|-v]
 
 Example: `python app.py 'http://localhost:32400' '123456abcdefg' --verbose`
 
+The server URL and token can also come from the `PLEX_URL` and `PLEX_TOKEN` environment variables, in which case both arguments can be omitted.
+
+## Plex behind a reverse proxy or Cloudflare Access
+
+Send extra HTTP headers with every Plex request using `-H`/`--header` (repeatable):
+
+```sh
+python app.py <server url> <token> -H 'X-Custom-Auth: secret'
+```
+
+For a server protected by [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/applications/), create a [service token](https://developers.cloudflare.com/cloudflare-one/identity/service-tokens/), add a policy with the **Service Auth** action that includes the token to the Access application, and export its credentials:
+
+```sh
+export PLEX_URL='https://plex.example.com'
+export PLEX_TOKEN='123456abcdefg'
+export CF_ACCESS_CLIENT_ID='<client id>.access'
+export CF_ACCESS_CLIENT_SECRET='<client secret>'
+python app.py
+```
+
+When both `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` are set, the `CF-Access-Client-Id` and `CF-Access-Client-Secret` headers are added to every request. Without them, Access redirects the script to its login page.
+
 ## Usage (windows)
 I don't have a windows machine to try this on, but build the shared library with Golang.
 
