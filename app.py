@@ -259,7 +259,8 @@ for p in logger.tqdm(pl, desc='Syncing playlists', unit='playlist'):
         if track:
             tracks.append(track)
         else:
-            full_path = f'{folder_path}/{file_name}' if folder_path else file_name
+            # FolderPath already includes the file name in the rekordbox DB
+            full_path = folder_path or file_name
             not_found_tracks.append(
                 {
                     'playlist': combined_title,
@@ -323,6 +324,12 @@ for p in logger.tqdm(pl, desc='Syncing playlists', unit='playlist'):
             )
             logger.playlist_updated(combined_title)
     else:
+        if not tracks:
+            logger.no_tracks_in_playlist(combined_title)
+            skipped_playlists.append(
+                {'name': combined_title, 'reason': 'No matching tracks'}
+            )
+            continue
         logger.creating_playlist(combined_title, len(tracks))
         plex.createPlaylist(title=combined_title, items=tracks)
         created_playlists.append({'name': combined_title, 'tracks': len(tracks)})

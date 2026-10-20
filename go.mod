@@ -2,7 +2,7 @@ module github.com/dvcrn/rekordbox-playlist-sync
 
 go 1.25.0
 
-require github.com/dvcrn/go-rekordbox v0.0.0-20231108014618-009cde44fc50
+require github.com/dvcrn/go-rekordbox v0.0.0-20260911091848-248867022c27
 
 require (
 	github.com/andreburgaud/crypt2go v1.1.0 // indirect
@@ -12,7 +12,3 @@ require (
 	github.com/xeodou/go-sqlcipher v0.0.0-20200727080346-d681773ef093 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 )
-
-// Temporary: Using forked version with deleted track filtering until PR is merged upstream
-// It supports Variable Bitrate audio.
-replace github.com/dvcrn/go-rekordbox => github.com/einaralex/go-rekordbox v1.0.0

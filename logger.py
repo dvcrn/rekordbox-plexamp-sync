@@ -30,17 +30,15 @@ class Logger:
 
     def section_header(self, title: str):
         """Print a section header with separators"""
-        if self.verbose:
-            print('\n' + '=' * 70)
-            print(title)
-            print('=' * 70)
+        print('\n' + '=' * 70)
+        print(title)
+        print('=' * 70)
 
     def section_footer(self, message: str = ''):
         """Print a section footer"""
-        if self.verbose:
-            if message:
-                print(message)
-            print('=' * 70 + '\n')
+        if message:
+            print(message)
+        print('=' * 70 + '\n')
 
     # Semantic logging methods for specific actions
 
@@ -140,8 +138,8 @@ class Logger:
 
     def not_found_tracks_exported(self, count: int):
         """Log that not-found tracks were exported"""
-        self.info(f'\n⚠️  {count} track(s) not found in Plex')
-        self.info('📄 Details exported to: not-found.json')
+        self.simple(f'\n⚠️  {count} track(s) not found in Plex')
+        self.simple('📄 Details exported to: not-found.json')
 
     def sync_summary_header(self):
         """Print sync summary header"""
@@ -149,24 +147,25 @@ class Logger:
 
     def all_in_sync_header(self):
         """Print header for when everything is in sync"""
-        self.section_header('✅ Everything is already in sync!')
+        print('\n' + '=' * 70)
+        print('✅ Everything is already in sync!')
 
     def created_playlists_summary(self, playlists: List[Dict]):
         """Print summary of created playlists"""
         if not playlists:
             return
-        self.info(f'\n✨ Created {len(playlists)} playlist(s):')
+        self.simple(f'\n✨ Created {len(playlists)} playlist(s):')
         for pl in playlists:
-            self.info(f'   • {pl["name"]} ({pl["tracks"]} tracks)')
+            self.simple(f'   • {pl["name"]} ({pl["tracks"]} tracks)')
 
     def updated_playlists_summary(self, playlists: List[Dict]):
         """Print summary of updated playlists"""
         if not playlists:
             return
-        self.info(f'\n🔄 Updated {len(playlists)} playlist(s):')
+        self.simple(f'\n🔄 Updated {len(playlists)} playlist(s):')
         for pl in playlists:
             change = f'+{pl["added"]}' if pl['added'] > 0 else str(pl['added'])
-            self.info(
+            self.simple(
                 f'   • {pl["name"]} ({pl["old_tracks"]} → {pl["new_tracks"]} tracks, {change})'
             )
 
@@ -174,11 +173,11 @@ class Logger:
         """Print summary of skipped smart playlists"""
         if not playlist_names:
             return
-        self.info(f'\n🔒 Skipped {len(playlist_names)} smart playlist(s):')
+        self.simple(f'\n🔒 Skipped {len(playlist_names)} smart playlist(s):')
         for name in playlist_names:
-            self.info(f'   • {name}')
+            self.simple(f'   • {name}')
 
     def sync_complete(self, total_processed: int):
         """Print sync completion message"""
-        self.info(f'\nTotal: {total_processed} playlists processed')
-        self.info('🎉 Sync complete!')
+        self.simple(f'\nTotal: {total_processed} playlists processed')
+        self.simple('🎉 Sync complete!')
